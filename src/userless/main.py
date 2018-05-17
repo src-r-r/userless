@@ -6,13 +6,36 @@ from flask import (
     Response,
 )
 
+# from flask_restful import (
+#     Resource,
+#     Api,
+# )
+from flask.ext.restless import (
+    APIManager,
+)
+from flask.ext.sqlalchemy import (
+    SQLAlchemy,
+)
+
+from validators import (
+    email as validate_email,
+)
+
 app = Flask(__name__)
+
+# restLESS API
+db = SQLAlchemy(app)
+
+# restFUL api
+# api = Api(app)
+
 
 @app.route('/')
 def index():
     """ Test path
     """
     return Response('hello, world!')
+
 
 @app.route('/register', methods=['POST', ])
 def register():
@@ -36,3 +59,5 @@ def register():
     body = request.get_json()
     email = body['email']
     password = body['password']
+    validate_email.email(email)
+    db.session
