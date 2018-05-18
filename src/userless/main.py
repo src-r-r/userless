@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 
+from queue import (
+    Queue
+)
+
 from flask import (
     Flask,
     request,
     Response,
 )
 
-# from flask_restful import (
-#     Resource,
-#     Api,
-# )
 from flask.ext.restless import (
     APIManager,
 )
@@ -17,18 +17,10 @@ from flask.ext.sqlalchemy import (
     SQLAlchemy,
 )
 
-from validators import (
-    email as validate_email,
+from userless.models import (
+    app,
+    db,
 )
-
-app = Flask(__name__)
-
-# restLESS API
-db = SQLAlchemy(app)
-
-# restFUL api
-# api = Api(app)
-
 
 @app.route('/')
 def index():
@@ -59,5 +51,15 @@ def register():
     body = request.get_json()
     email = body['email']
     password = body['password']
-    validate_email.email(email)
-    db.session
+    user = User(email=email, password=password)
+    db.session.add(user)
+    db.session.commit()
+
+
+@app.route('/verify', method=['POST', ])
+
+
+@app.route('/login/', method=['POST', ])
+def login():
+    email = request.data['email']
+    password = request.data['password']

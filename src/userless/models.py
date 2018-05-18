@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from sqlalchemy.ext.declarative import (
-    declarative_base,
+    # declarative_base,
     declared_attr,
     )
 
@@ -12,14 +12,30 @@ from sqlalchemy import (
     Boolean,
 )
 
+from sqlalchemy.orm import (
+    validates,
+)
+
 from sqlalchemy_utils import (
     EmailType,
     PasswordType,
     # ChoiceType,
 )
 
-Base = declarative_base()
+from flask import (
+    Flask,
+)
+from flask_sqlalchemy import (
+    SqlAlchemy,
+)
 
+from validators import (
+    email as validate_email,
+    length as validate_length,
+)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////tmp/test.db'
+db = SQLAlchemy(app)
 
 class NamedTableMixin(object):
 
@@ -28,7 +44,7 @@ class NamedTableMixin(object):
         return cls.__name__.lower()
 
 
-class ModelBase(Base, NamedTableMixin):
+class ModelBase(db.Base, NamedTableMixin):
 
     id = Column(Integer, primary_key=True)
 
@@ -39,6 +55,11 @@ class User(ModelBase):
     password = Column(PasswordType, nullable=False)
     is_verified = Column(Boolean, nullable=False, default=False)
     token = Column(String)
+
+    @validates
+    def email(self, value):
+        validate_email(value)
+        return value
 
 
 class Group(ModelBase):
