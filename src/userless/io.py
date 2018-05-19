@@ -7,14 +7,16 @@ from threading import (
 )
 from time import sleep
 
+
 class EmailVerificationQueue(Thread):
 
     SLEEP_TIME = 10
 
-    def __init__(*args, **kwargs):
+    def __init__(self, email_config):
         self.users = []
         self._lock = Semaphore()
         self._running = False
+        self.email_config = email_config
         super(EmailVerificationQueue, self).__init__(*args, **kwargs)
 
     def run(self):
@@ -22,6 +24,14 @@ class EmailVerificationQueue(Thread):
         while self._running:
             if len(self.users) == 0:
                 continue
+            self._lock.acquire()
+            # !! BEGIN CRITICAL SECTION
             u = self.users.pop(0)
+            u.send_verification_email()
+            # !! END REGIION !!
+            self._lock.release()
 
-    def add_user(self)
+    def add_user(self, user):
+        self._lock.acquire()  # -- BEGIN CRITCAL SECTION
+        self.users.append(user)
+        self._lock.release()  # -- END CRITICAL SECTION

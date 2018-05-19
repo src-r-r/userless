@@ -54,12 +54,15 @@ class User(ModelBase):
     email = Column(EmailType, unique=True, nullable=False)
     password = Column(PasswordType, nullable=False)
     is_verified = Column(Boolean, nullable=False, default=False)
+    state = Column(String)
     token = Column(String)
 
     @validates
     def email(self, value):
         validate_email(value)
         return value
+
+    def send_verification_email(self, email_config):
 
 
 class Group(ModelBase):

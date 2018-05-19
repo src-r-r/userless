@@ -7,4 +7,4 @@ flask-security
 flask-restless # not sure I'll use this
 # flask-restful # ok, I'll use restless.
 validators
-yaml
+pyyaml
