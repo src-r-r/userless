@@ -34,6 +34,8 @@ from validators import (
     length as validate_length,
 )
 
+from requests import Request
+
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////tmp/test.db'
 db = SQLAlchemy(app)
 
