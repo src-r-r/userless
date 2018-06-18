@@ -1,6 +1,0 @@
-setup.py
-userless.egg-info/PKG-INFO
-userless.egg-info/SOURCES.txt
-userless.egg-info/dependency_links.txt
-userless.egg-info/requires.txt
-userless.egg-info/top_level.txt

@@ -27,6 +27,8 @@ class RedisQueue(Redis):
 
     def qitems(self, key):
         val = self.get(key)
+        if not (val or len(val)):
+            return []
         return pickle.loads(val)
 
     def qlength(self, key):
@@ -49,6 +51,8 @@ class RedisQueue(Redis):
 
     def qpop(self, key):
         items = self.qitems(key)
+        if not (len(items)):
+            return None
         item = items.pop(-1)
         self._qset(key, items)
         return item
@@ -58,6 +62,7 @@ class GeneralizedUserQueue(Thread):
     """ Queue for email verification. """
 
     SLEEP_TIME = 10
+    REDIS_KEY = 'users'
 
     def __init__(self, redis_pool_args, UserClass, db, *args, **kwargs):
         """ Construct a new email verification queue.
@@ -87,11 +92,15 @@ class GeneralizedUserQueue(Thread):
         """ Run the email verification queue. """
         self._running = True
         while self._running:
-            if len(self.users) == 0:
-                continue
             self._lock.acquire()  # !! BEGIN CRITICAL SECTION
-            redis = Redis(connection_pool=self.redis_pool)
-            uid = int(redis.qpop())
+            redis = RedisQueue(connection_pool=self.redis_pool)
+            uid = redis.qpop(self.REDIS_KEY)
+            if uid is None:
+                log.debug('no user found in queue...waiting')
+                sleep(QUEUE_INTERVAL)
+                self._lock.release()
+                continue
+            uid = int(uid)
             user = self.db.query(self.User).filter_by(id=uid).first()
 
             if user:
@@ -114,18 +123,24 @@ class GeneralizedUserQueue(Thread):
         :param user: User to be added to the queue.
         """
         self._lock.acquire()  # -- BEGIN CRITCAL SECTION
-        r = RedisQueue(connection_pool=self.redis_pool)
-        if not hasattr(user, 'id'):
-            raise AttributeError('user has no `id` attribute')
-        r.qpush(user.id)
+        try:
+            r = RedisQueue(connection_pool=self.redis_pool)
+            if not hasattr(user, 'id'):
+                self._lock.release()
+                raise AttributeError('user has no `id` attribute')
+            r.qpush(self.REDIS_KEY, user.id)
+        except Exception as e:
+            pass
+        except TypeError as te:
+            pass
         self._lock.release()  # -- END CRITICAL SECTION
         return True
 
     def __del__(self):
         self._lock.acquire()  # -- BEGIN CRITCAL SECTION
-        r = Redis(connection_pool=self.redis_pool)
-        if not r.exists('users'):
-            r.set('users', '')
+        r = RedisQueue(connection_pool=self.redis_pool)
+        if not r.exists(self.REDIS_KEY):
+            r.set(self.REDIS_KEY, '')
         del r
         self._lock.release()  # -- END CRITICAL SECTION
 

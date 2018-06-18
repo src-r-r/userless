@@ -101,12 +101,20 @@ class TestUserQueue(unittest.TestCase):
 
     def setUp(self):
         self.app = create_app('../assets/configurations/test.py')
-        self.ctx = app.app_context()
+        with self.app.app_context():
+            db.drop_all()
+            db.create_all()
+        # self.ctx = app.app_context()
+
+    def tearDown(self):
+        with self.app.app_context():
+            db.drop_all()
 
     def test_uq(self):
         euq = ExampleUserQueue()
         # Simulate adding several users
         n_users = random.randint(5, 10)
+        euq.start()
         log.debug('generating {} users'.format(n_users))
         with self.app.app_context():
             for i in range(0, n_users):
@@ -119,3 +127,4 @@ class TestUserQueue(unittest.TestCase):
         # Wait a while to let the queue finish
         sleep(1.5)
         self.assertEqual(len(euq.processed_users), n_users)
+        euq.stop()

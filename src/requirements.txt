@@ -13,3 +13,4 @@ lotconfig
 redis
 sqlalchemy_utils
 faker
+psycopg2

@@ -73,7 +73,11 @@ user_group_assoc = Table('user_group_assoc', db.Model.metadata,
 class User(db.Model):
 
     email = Column(EmailType, unique=True, nullable=False)
-    password = Column(PasswordType, nullable=False)
+    password = Column(PasswordType(
+        schemes=[
+            'pbkdf2_sha512',
+        ],
+    ), nullable=False)
     is_verified = Column(Boolean, nullable=False, default=False)
     state = Column(String)
     token = Column(String)
