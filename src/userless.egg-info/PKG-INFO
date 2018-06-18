@@ -1,0 +1,42 @@
+Metadata-Version: 2.1
+Name: userless
+Version: 1.0
+Summary: No-Setup User REST API, part of the Refraction project.
+Home-page: https://github.com/me/myproject
+Author: Jordan Hewitt
+Author-email: jordan.h@startmail.com
+License: GPLV3
+Description: 
+        # Userless REST API Framework
+        
+        Userless is a REST API docker image that sets up a very basic REST
+        authentication mechanism so that you can set it and forget it and move on to
+        bigger and better things.
+        
+        ## Installation
+        
+        ### Requirements
+        
+        Software requirements:
+        
+        * Docker
+        
+        ### Setup
+        
+        TODO
+        
+        ## Models used
+        
+        ## REST API endpoints
+        
+        ## Workflow
+        
+        ### 1 - Initial Setup
+        
+Platform: UNKNOWN
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.6
+Requires-Python: >=3.6.0
+Description-Content-Type: text/markdown

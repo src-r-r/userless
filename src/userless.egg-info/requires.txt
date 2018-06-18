@@ -4,8 +4,7 @@ alembic
 psycopg2
 flask-sqlalchemy
 flask-security
-flask-restless # not sure I'll use this
-# flask-restful # ok, I'll use restless.
+flask-restless
 requests
 validators
 pyyaml
