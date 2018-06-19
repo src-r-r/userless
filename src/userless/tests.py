@@ -82,13 +82,14 @@ from userless.main import create_app
 
 class ExampleUserQueue(GeneralizedUserQueue):
 
-    def __init__(self):
+    def __init__(self, db, flask_context):
         redis_pool_args = dict(
             host='localhost',
             port=6379,
             db=0
         )
-        super(ExampleUserQueue, self).__init__(redis_pool_args, User, db)
+        super(ExampleUserQueue, self).__init__(redis_pool_args, User, db=db,
+                                               flask_context=flask_context)
         self.processed_users = []
 
     def process(self, user):
@@ -104,27 +105,40 @@ class TestUserQueue(unittest.TestCase):
         with self.app.app_context():
             db.drop_all()
             db.create_all()
-        # self.ctx = app.app_context()
 
     def tearDown(self):
         with self.app.app_context():
             db.drop_all()
 
     def test_uq(self):
-        euq = ExampleUserQueue()
         # Simulate adding several users
         n_users = random.randint(5, 10)
-        euq.start()
         log.debug('generating {} users'.format(n_users))
-        with self.app.app_context():
+        flask_context = self.app.app_context()
+        with flask_context:
+            producer = ExampleUserQueue(db=db.session,
+                                        flask_context=flask_context)
+            consumer = ExampleUserQueue(db=db.session,
+                                        flask_context=flask_context)
+            threads = [
+                consumer,
+                producer,
+            ]
+            for t in threads:
+                t.start()
+                t.join()
             for i in range(0, n_users):
                 user = User(email=fake.email(),
                             password=fake.password())
                 db.session.add(user)
                 db.session.commit()
-                euq.add_user(user)
-                sleep(random.random())  # wait for at most 1 second
+                log.debug('add user user'.format(user))
+                producer.add_user(user)
+                sleep_time = random.random()
+                log.debug('sleeping {}'.format(sleep_time))
+                sleep(sleep_time)  # wait for at most 1 second
+            for t in threads:
+                t.stop()
         # Wait a while to let the queue finish
         sleep(1.5)
-        self.assertEqual(len(euq.processed_users), n_users)
-        euq.stop()
+        self.assertEqual(len(queue.processed_users), n_users)

@@ -189,6 +189,9 @@ class User(db.Model):
         }
         return self.generic_send_email(escargo, escargo_server)
 
+    def __str__(self):
+        return '<User (id={})>'.format(self.id)
+
 
 class Group(db.Model):
 

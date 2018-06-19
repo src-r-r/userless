@@ -27,7 +27,7 @@ class RedisQueue(Redis):
 
     def qitems(self, key):
         val = self.get(key)
-        if not (val or len(val)):
+        if not (val and len(val)):
             return []
         return pickle.loads(val)
 
@@ -64,7 +64,8 @@ class GeneralizedUserQueue(Thread):
     SLEEP_TIME = 10
     REDIS_KEY = 'users'
 
-    def __init__(self, redis_pool_args, UserClass, db, *args, **kwargs):
+    def __init__(self, redis_pool_args, UserClass, db, flask_context, *args,
+                 **kwargs):
         """ Construct a new email verification queue.
 
         :param user_function: Function to call during queue processing.
@@ -79,6 +80,7 @@ class GeneralizedUserQueue(Thread):
         """
         self._lock = Semaphore()
         self._running = False
+        self.flask_context = flask_context
         self.redis_pool = ConnectionPool(**redis_pool_args)
         self.User = UserClass
         self.db = db
@@ -99,9 +101,11 @@ class GeneralizedUserQueue(Thread):
                 log.debug('no user found in queue...waiting')
                 sleep(QUEUE_INTERVAL)
                 self._lock.release()
+                # redis.release()
                 continue
             uid = int(uid)
-            user = self.db.query(self.User).filter_by(id=uid).first()
+            with self.flask_context:
+                user = self.db.query(self.User).filter_by(id=uid).first()
 
             if user:
                 self.process(user)
