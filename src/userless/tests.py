@@ -4,21 +4,36 @@ import unittest
 import random
 
 import logging
-import pickle
+# import pickle
 from time import sleep
 # import logging.config
 
+from sqlalchemy.inspection import (
+    inspect,
+)
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
 from faker import Faker
 
-from userless.io import (
-    RedisQueue,
-    GeneralizedUserQueue,
-)
+# from userless.io import (
+#     process_user_verification,
+#     process_password_reset,
+# )
 
 from userless.models import (
     User,
-    Group,
+    # Group,
 )
+
+
+from userless.extension import (
+    celery,
+    db,
+)
+from userless.main import create_app
+
 
 fake = Faker()
 
@@ -26,119 +41,58 @@ logging.basicConfig(level=logging.DEBUG)
 
 log = logging.getLogger(__name__)
 
-class TestRedisQueue(unittest.TestCase):
 
-    def test_init(self):
-        rq = RedisQueue()
-        self.assertIsNotNone(rq)
+app = create_app('../assets/configurations/test.py')
+celery.init_app(app)
 
-    def test_push(self):
-        rq = RedisQueue()
-        rq.set('x', '')
-        rq.delete('x')
-        rq.qpush('x', 4)
-        self.assertEqual(pickle.loads(rq.get('x')), [4, ])
 
-    def test_items(self):
-        rq = RedisQueue()
-        rq.set('x', '')
-        rq.delete('x')
-        expected = [
-            4,
-            'magical',
-            1.3,
-            {'a': 4, 'b': 7, },
-        ]
-        for e in expected:
-            rq.qpush('x', e)
-        items = rq.qitems('x')
-        expected.reverse()
-        self.assertEqual(items, expected)
+@celery.task
+def verify_user(user_id):
+    """ Test task to just set a user to verified.
 
-    def test_pop(self):
-        rq = RedisQueue()
-        rq.set('x', '')
-        rq.delete('x')
-        expected = [
-            4,
-            'magical',
-            1.3,
-            {'a': 4, 'b': 7, },
-        ]
-        for e in expected:
-            rq.qpush('x', e)
-        self.assertEqual(rq.qlength('x'), 4)
-        self.assertEqual(rq.qpop('x'), expected[0])
-        self.assertEqual(rq.qlength('x'), 3)
-        self.assertEqual(rq.qpop('x'), expected[1])
-        self.assertEqual(rq.qlength('x'), 2)
-        self.assertEqual(rq.qpop('x'), expected[2])
-        self.assertEqual(rq.qlength('x'), 1)
-        self.assertEqual(rq.qpop('x'), expected[3])
-        self.assertEqual(rq.qlength('x'), 0)
-
-from userless.models import db
-from userless.main import create_app
-
-class ExampleUserQueue(GeneralizedUserQueue):
-
-    def __init__(self, db, flask_context):
-        redis_pool_args = dict(
-            host='localhost',
-            port=6379,
-            db=0
-        )
-        super(ExampleUserQueue, self).__init__(redis_pool_args, User, db=db,
-                                               flask_context=flask_context)
-        self.processed_users = []
-
-    def process(self, user):
-        log.debug('processing {}'.format(user))
-        self.processed_users.append(user)
-        return True
+    :param user_id: ID of the user to set to 'verified'
+    """
+    log.debug('verifying user id={}'.format(user_id))
+    u = db.session.query(User).filter_by(id=user_id).first()
+    u.is_verified = True
+    db.session.commit()
+    return u
 
 
 class TestUserQueue(unittest.TestCase):
 
     def setUp(self):
-        self.app = create_app('../assets/configurations/test.py')
-        with self.app.app_context():
+        with app.app_context():
             db.drop_all()
             db.create_all()
 
     def tearDown(self):
-        with self.app.app_context():
+        with app.app_context():
             db.drop_all()
 
     def test_uq(self):
         # Simulate adding several users
+        global verify_userZ
         n_users = random.randint(5, 10)
         log.debug('generating {} users'.format(n_users))
-        flask_context = self.app.app_context()
-        with flask_context:
-            producer = ExampleUserQueue(db=db.session,
-                                        flask_context=flask_context)
-            consumer = ExampleUserQueue(db=db.session,
-                                        flask_context=flask_context)
-            threads = [
-                consumer,
-                producer,
-            ]
-            for t in threads:
-                t.start()
-                t.join()
+        with app.app_context():
             for i in range(0, n_users):
                 user = User(email=fake.email(),
                             password=fake.password())
                 db.session.add(user)
                 db.session.commit()
-                log.debug('add user user'.format(user))
-                producer.add_user(user)
-                sleep_time = random.random()
-                log.debug('sleeping {}'.format(sleep_time))
-                sleep(sleep_time)  # wait for at most 1 second
-            for t in threads:
-                t.stop()
-        # Wait a while to let the queue finish
-        sleep(1.5)
-        self.assertEqual(len(queue.processed_users), n_users)
+                log.debug('verifying {} of {} ({})'.format(i, n_users, user))
+                result = verify_user.delay(user.id)
+                # Wait a while to let the queue finish
+                # result.wait()
+                u = result.get()
+                if (isinstance(u, User)):
+                    self.assertTrue(u.is_verified)
+                else:
+                    log.debug('result #{} = {}'.format(i, type(result.get()).__name__))
+                sleep(random.random() + 0.2)
+        with app.app_context():
+            verified = db.session.query(User)\
+                                 .filter_by(is_verified=True)\
+                                 .count()
+            self.assertEqual(verified, n_users)

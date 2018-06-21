@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
-from userless.io import (
-    UserPasswordResetQueue,
-    UserVerificationQueue,
-)
+# from userless.io import (
+#     UserPasswordResetQueue,
+#     UserVerificationQueue,
+# )
 
 from userless.app import create_app
 from userless.paths import MAIN_CONFIG

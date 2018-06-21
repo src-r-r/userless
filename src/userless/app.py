@@ -4,26 +4,23 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_restless import APIManager
 
+
+from userless.exc import (
+    UserlessException,
+)
+
+from userless.extension import (
+    celery,
+    db
+)
+
+
 class UserlessApp(Flask):
 
     def __init__(self, *args, **kwargs):
         super(UserlessApp, self).__init__(*args, **kwargs)
         self.api_manager = None
-
-    def _start_queues(self):
-        for q in QUEUES.items():
-            q.run()
-
-    def _stop_queues(self):
-        for q in QUEUES.items():
-            q.join()
-            q.stop()
-
-    def request_account_verification(self, user):
-        return QUEUES['password_reset'].add_user(user)
-
-    def request_password_reset(self, user):
-        return QUEUES['account_verification'].add_user(user)
+        self.db = None
 
 
 def create_app(config_filename):
@@ -42,6 +39,8 @@ def create_app(config_filename):
         raise OSError('✘ Pre-Flight Check Failed; Check console for output.')
 
     db.init_app(app)
+    celery.init_app(app)
+
     manager = APIManager(app, flask_sqlalchemy_db=db)
 
     with app.app_context():
@@ -49,4 +48,9 @@ def create_app(config_filename):
         manager.create_api(User, methods=['GET', 'PUT', 'POST', 'DELETE'])
         manager.create_api(Group, methods=['GET', 'PUT', 'POST', 'DELETE'])
 
+    app.db = db
+    app.api_manager = manager
+
     return app
+
+# Copied from "Flask Celery pattern" (https://lstu.fr/dqLZcUur)
